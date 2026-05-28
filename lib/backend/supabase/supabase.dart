@@ -3,9 +3,14 @@ import '/flutter_flow/flutter_flow_util.dart';
 
 export 'database/database.dart';
 
-String _kSupabaseUrl = 'https://fmyidmxzzkpbqntvslsc.supabase.co';
-String _kSupabaseAnonKey =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZteWlkbXh6emtwYnFudHZzbHNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MzM2NDUsImV4cCI6MjA5MDEwOTY0NX0.tyW2-Fam3TOLxHl2-NKDnME4n_IAz3mZYUJH6mtvMGw';
+/// Backend base URL (Laravel via ngrok).
+///
+/// This replaces the generated Supabase config; all CRUD now goes through
+/// your Laravel API.
+const String kLaravelBaseUrl = 'https://endowment-unshaven-ebony.ngrok-free.dev';
+
+/// Required to bypass ngrok's browser warning page for programmatic requests.
+const String kNgrokSkipBrowserWarningHeader = 'ngrok-skip-browser-warning';
 
 class SupaFlow {
   SupaFlow._();
@@ -13,17 +18,24 @@ class SupaFlow {
   static SupaFlow? _instance;
   static SupaFlow get instance => _instance ??= SupaFlow._();
 
+  /// Kept for backwards-compatibility with generated FlutterFlow code.
+  /// The app no longer uses Supabase for CRUD, so this client is unused.
   final _supabase = Supabase.instance.client;
   static SupabaseClient get client => instance._supabase;
 
-  static Future initialize() => Supabase.initialize(
-        url: _kSupabaseUrl,
-        headers: {
-          'X-Client-Info': 'flutterflow',
-        },
-        anonKey: _kSupabaseAnonKey,
-        debug: false,
-        authOptions:
-            FlutterAuthClientOptions(authFlowType: AuthFlowType.implicit),
-      );
+  static Map<String, String> defaultHeaders({bool includeJsonContentType = false}) {
+    final headers = <String, String>{
+      kNgrokSkipBrowserWarningHeader: 'true',
+      'Accept': 'application/json',
+    };
+    if (includeJsonContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+    return headers;
+  }
+
+  /// No-op initialize: Supabase is no longer used as the backend.
+  static Future initialize() async {
+    return;
+  }
 }

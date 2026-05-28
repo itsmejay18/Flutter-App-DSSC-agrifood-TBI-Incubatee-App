@@ -1,132 +1,189 @@
 import 'database.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 abstract class SupabaseTable<T extends SupabaseDataRow> {
   String get tableName;
   T createRow(Map<String, dynamic> data);
 
-  PostgrestFilterBuilder _select() => SupaFlow.client.from(tableName).select();
+  /// Laravel API collection endpoint for this table.
+  ///
+  /// The FlutterFlow project uses a Supabase-style `tableName` ("records"),
+  /// but the Laravel API for this project exposes `students`.
+  String get _laravelCollectionPath {
+    if (tableName == 'records') return '/api/students';
+    return '/api/$tableName';
+  }
 
   Future<List<T>> queryRows({
-    required PostgrestTransformBuilder Function(PostgrestFilterBuilder) queryFn,
+    required dynamic Function(dynamic) queryFn,
     int? limit,
   }) {
-    final select = _select();
-    var query = queryFn(select);
-    query = limit != null ? query.limit(limit) : query;
-    return query.select().then((rows) => rows.map(createRow).toList());
+    final q = LaravelQuery();
+    queryFn(q);
+    if (limit != null) q.limit(limit);
+
+    return _laravelGetList(limit: q._limit);
   }
 
   Future<List<T>> querySingleRow({
-    required PostgrestTransformBuilder Function(PostgrestFilterBuilder) queryFn,
+    required dynamic Function(dynamic) queryFn,
   }) =>
-      queryFn(_select())
-          .limit(1)
-          .select()
-          .maybeSingle()
-          .catchError((e) => print('Error querying row: $e'))
-          .then((r) => [if (r != null) createRow(r)]);
+      _laravelGetSingle(queryFn);
 
-  Future<T> insert(Map<String, dynamic> data) => SupaFlow.client
-      .from(tableName)
-      .insert(data)
-      .select()
-      .limit(1)
-      .single()
-      .then(createRow);
+  Future<T> insert(Map<String, dynamic> data) => _laravelCreate(data);
 
   Future<List<T>> update({
     required Map<String, dynamic> data,
-    required PostgrestTransformBuilder Function(PostgrestFilterBuilder)
-        matchingRows,
+    required dynamic Function(dynamic) matchingRows,
     bool returnRows = false,
   }) async {
-    final update = matchingRows(SupaFlow.client.from(tableName).update(data));
-    if (!returnRows) {
-      await update;
-      return [];
+    final filter = LaravelFilter();
+    matchingRows(filter);
+
+    final id = filter.eqFilters['id']?.toString();
+    if (id == null || id.isEmpty) {
+      throw Exception('Update requires an id filter.');
     }
-    return update.select().then((rows) => rows.map(createRow).toList());
+
+    final updated = await _laravelUpdate(id, data);
+    return returnRows ? [updated] : [];
   }
 
   Future<List<T>> delete({
-    required PostgrestTransformBuilder Function(PostgrestFilterBuilder)
-        matchingRows,
+    required dynamic Function(dynamic) matchingRows,
     bool returnRows = false,
   }) async {
-    final delete = matchingRows(SupaFlow.client.from(tableName).delete());
-    if (!returnRows) {
-      await delete;
+    final filter = LaravelFilter();
+    matchingRows(filter);
+
+    final id = filter.eqFilters['id']?.toString();
+    if (id == null || id.isEmpty) {
+      throw Exception('Delete requires an id filter.');
+    }
+
+    await _laravelDelete(id);
+    return [];
+  }
+
+  Uri _uri(String path) => Uri.parse('${kLaravelBaseUrl}${path.startsWith('/') ? '' : '/'}$path');
+
+  Future<List<T>> _laravelGetList({int? limit}) async {
+    final res = await http.get(
+      _uri(_laravelCollectionPath),
+      headers: SupaFlow.defaultHeaders(),
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('GET $_laravelCollectionPath failed: ${res.statusCode} ${res.body}');
+    }
+
+    final decoded = json.decode(res.body);
+    final data = (decoded is Map<String, dynamic> ? decoded['data'] : decoded) as dynamic;
+    final list = (data is List ? data : <dynamic>[]);
+    final rows = list
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m as Map))
+        .map(createRow)
+        .toList();
+
+    if (limit != null && limit >= 0 && rows.length > limit) {
+      return rows.take(limit).toList();
+    }
+    return rows;
+  }
+
+  Future<List<T>> _laravelGetSingle(dynamic Function(dynamic) queryFn) async {
+    final filter = LaravelFilter();
+    queryFn(filter);
+    final id = filter.eqFilters['id']?.toString();
+    if (id == null || id.isEmpty) {
       return [];
     }
-    return delete.select().then((rows) => rows.map(createRow).toList());
+
+    final res = await http.get(
+      _uri('$_laravelCollectionPath/$id'),
+      headers: SupaFlow.defaultHeaders(),
+    );
+    if (res.statusCode == 404) return [];
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('GET $_laravelCollectionPath/$id failed: ${res.statusCode} ${res.body}');
+    }
+
+    final decoded = json.decode(res.body);
+    final data = (decoded is Map<String, dynamic> ? decoded['data'] : decoded) as dynamic;
+    if (data is Map) {
+      return [createRow(Map<String, dynamic>.from(data as Map))];
+    }
+    return [];
+  }
+
+  Future<T> _laravelCreate(Map<String, dynamic> data) async {
+    final res = await http.post(
+      _uri(_laravelCollectionPath),
+      headers: SupaFlow.defaultHeaders(includeJsonContentType: true),
+      body: json.encode(data),
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('POST $_laravelCollectionPath failed: ${res.statusCode} ${res.body}');
+    }
+
+    final decoded = json.decode(res.body);
+    final row = (decoded is Map<String, dynamic> ? decoded['data'] : decoded) as dynamic;
+    return createRow(Map<String, dynamic>.from(row as Map));
+  }
+
+  Future<T> _laravelUpdate(String id, Map<String, dynamic> data) async {
+    final res = await http.put(
+      _uri('$_laravelCollectionPath/$id'),
+      headers: SupaFlow.defaultHeaders(includeJsonContentType: true),
+      body: json.encode(data),
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('PUT $_laravelCollectionPath/$id failed: ${res.statusCode} ${res.body}');
+    }
+
+    final decoded = json.decode(res.body);
+    final row = (decoded is Map<String, dynamic> ? decoded['data'] : decoded) as dynamic;
+    return createRow(Map<String, dynamic>.from(row as Map));
+  }
+
+  Future<void> _laravelDelete(String id) async {
+    final res = await http.delete(
+      _uri('$_laravelCollectionPath/$id'),
+      headers: SupaFlow.defaultHeaders(),
+    );
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      throw Exception('DELETE $_laravelCollectionPath/$id failed: ${res.statusCode} ${res.body}');
+    }
   }
 }
 
-extension NullSafePostgrestFilters on PostgrestFilterBuilder {
-  PostgrestFilterBuilder eqOrNull(String column, dynamic value) {
-    return value != null ? eq(column, value) : this;
-  }
+class LaravelQuery {
+  int? _limit;
 
-  PostgrestFilterBuilder neqOrNull(String column, dynamic value) {
-    return value != null ? neq(column, value) : this;
-  }
-
-  PostgrestFilterBuilder ltOrNull(String column, dynamic value) {
-    return value != null ? lt(column, value) : this;
-  }
-
-  PostgrestFilterBuilder lteOrNull(String column, dynamic value) {
-    return value != null ? lte(column, value) : this;
-  }
-
-  PostgrestFilterBuilder gtOrNull(String column, dynamic value) {
-    return value != null ? gt(column, value) : this;
-  }
-
-  PostgrestFilterBuilder gteOrNull(String column, dynamic value) {
-    return value != null ? gte(column, value) : this;
-  }
-
-  PostgrestFilterBuilder containsOrNull(String column, dynamic value) {
-    return value != null ? contains(column, value) : this;
-  }
-
-  PostgrestFilterBuilder overlapsOrNull(String column, dynamic value) {
-    return value != null ? overlaps(column, value) : this;
-  }
-
-  PostgrestFilterBuilder inFilterOrNull(String column, List<dynamic>? values) {
-    return values != null ? inFilter(column, values) : this;
+  LaravelQuery limit(int value) {
+    _limit = value;
+    return this;
   }
 }
 
-extension NullSafeSupabaseStreamFilters on SupabaseStreamFilterBuilder {
-  SupabaseStreamBuilder eqOrNull(String column, dynamic value) {
-    return value != null ? eq(column, value) : this;
+class LaravelFilter {
+  final Map<String, dynamic> eqFilters = <String, dynamic>{};
+
+  LaravelFilter eq(String column, dynamic value) {
+    eqFilters[column] = value;
+    return this;
   }
 
-  SupabaseStreamBuilder neqOrNull(String column, dynamic value) {
-    return value != null ? neq(column, value) : this;
-  }
-
-  SupabaseStreamBuilder ltOrNull(String column, dynamic value) {
-    return value != null ? lt(column, value) : this;
-  }
-
-  SupabaseStreamBuilder lteOrNull(String column, dynamic value) {
-    return value != null ? lte(column, value) : this;
-  }
-
-  SupabaseStreamBuilder gtOrNull(String column, dynamic value) {
-    return value != null ? gt(column, value) : this;
-  }
-
-  SupabaseStreamBuilder gteOrNull(String column, dynamic value) {
-    return value != null ? gte(column, value) : this;
-  }
-
-  SupabaseStreamBuilder inFilterOrNull(String column, List<Object>? values) {
-    return values != null ? inFilter(column, values) : this;
+  LaravelFilter eqOrNull(String column, dynamic value) {
+    if (value != null) {
+      eqFilters[column] = value;
+    }
+    return this;
   }
 }
 
