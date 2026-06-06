@@ -3,10 +3,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+<<<<<<< HEAD
 const String kLaravelBaseUrl = String.fromEnvironment(
   'LARAVEL_BASE_URL',
   defaultValue: 'https://tattling-reoccupy-surfacing.ngrok-free.dev',
 );
+=======
+const String kLaravelBaseUrl = String.fromEnvironment('LARAVEL_BASE_URL',
+    defaultValue: 'https://immaculate-maryetta-inventively.ngrok-free.dev');
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
 
 class LaravelApiException implements Exception {
   LaravelApiException(this.message, {this.statusCode});
@@ -19,21 +24,30 @@ class LaravelApiException implements Exception {
 }
 
 class LaravelApi {
+<<<<<<< HEAD
   LaravelApi({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
         _baseUrl = (baseUrl ?? kLaravelBaseUrl).replaceAll(RegExp(r'/+$'), '');
 
   final http.Client _client;
   final String _baseUrl;
+=======
+  LaravelApi({http.Client? client}) : _client = client ?? http.Client();
+
+  final http.Client _client;
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
   String? _token;
 
   bool get isAuthenticated => _token != null && _token!.isNotEmpty;
 
+<<<<<<< HEAD
   String publicAsset(String path) {
     final cleanPath = path.startsWith('/') ? path : '/$path';
     return '$_baseUrl$cleanPath';
   }
 
+=======
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
   Future<void> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('mobile_token');
@@ -56,15 +70,25 @@ class LaravelApi {
     required String password,
   }) async {
     final body = await _post(
+<<<<<<< HEAD
       '/login',
       {'email': email, 'password': password},
       authenticated: false,
     );
+=======
+        '/login',
+        {
+          'email': email,
+          'password': password,
+        },
+        authenticated: false);
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
     await _saveToken(body['token'] as String);
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
   Future<Map<String, dynamic>> register({
+<<<<<<< HEAD
     required String firstName,
     required String lastName,
     required String email,
@@ -84,6 +108,32 @@ class LaravelApi {
       },
       authenticated: false,
     );
+=======
+    required String name,
+    required String email,
+    required String password,
+    required String passwordConfirmation,
+    String? phone,
+    String? businessName,
+    String? businessAddress,
+    String? focusArea,
+    String? stage,
+  }) async {
+    final body = await _post(
+        '/register',
+        {
+          'name': name,
+          'email': email,
+          'password': password,
+          'password_confirmation': passwordConfirmation,
+          'phone': phone,
+          'business_name': businessName,
+          'business_address': businessAddress,
+          'focus_area': focusArea,
+          'stage': stage,
+        },
+        authenticated: false);
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
     await _saveToken(body['token'] as String);
     return Map<String, dynamic>.from(body['data'] as Map);
   }
@@ -93,6 +143,7 @@ class LaravelApi {
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
+<<<<<<< HEAD
   Future<Map<String, dynamic>> updateProfile({
     required String firstName,
     required String lastName,
@@ -112,12 +163,18 @@ class LaravelApi {
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
+=======
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
   Future<void> logout() async {
     if (isAuthenticated) {
       try {
         await _post('/logout', {});
       } catch (_) {
+<<<<<<< HEAD
         // Keep local logout available when the tunnel is offline.
+=======
+        // Local logout should still work when the tunnel is offline.
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
       }
     }
     await clearSession();
@@ -128,11 +185,24 @@ class LaravelApi {
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
+<<<<<<< HEAD
   Future<Map<String, dynamic>> catalog() async {
     final body = await _get('/catalog');
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
+=======
+  Future<List<Map<String, dynamic>>> applications() => _list('/applications');
+
+  Future<Map<String, dynamic>> createApplication(
+      Map<String, dynamic> data) async {
+    final body = await _post('/applications', data);
+    return Map<String, dynamic>.from(body['data'] as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> equipment() => _list('/equipment');
+
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
   Future<List<Map<String, dynamic>>> bookings() => _list('/bookings');
 
   Future<Map<String, dynamic>> createBooking(Map<String, dynamic> data) async {
@@ -140,6 +210,7 @@ class LaravelApi {
     return Map<String, dynamic>.from(body['data'] as Map);
   }
 
+<<<<<<< HEAD
   Future<Map<String, dynamic>> updateBooking(
     int reservationId,
     Map<String, dynamic> data,
@@ -166,6 +237,16 @@ class LaravelApi {
   }
 
   Future<List<Map<String, dynamic>>> receipts() => _list('/receipts');
+=======
+  Future<List<Map<String, dynamic>>> reports() => _list('/reports');
+
+  Future<Map<String, dynamic>> createReport(Map<String, dynamic> data) async {
+    final body = await _post('/reports', data);
+    return Map<String, dynamic>.from(body['data'] as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> moas() => _list('/moa');
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
 
   Future<List<Map<String, dynamic>>> _list(String path) async {
     final body = await _get(path);
@@ -197,6 +278,7 @@ class LaravelApi {
     return _decode(response);
   }
 
+<<<<<<< HEAD
   Future<Map<String, dynamic>> _put(
     String path,
     Map<String, dynamic> data,
@@ -215,6 +297,9 @@ class LaravelApi {
   }
 
   Uri _uri(String path) => Uri.parse('$_baseUrl/api/mobile$path');
+=======
+  Uri _uri(String path) => Uri.parse('$kLaravelBaseUrl/api/mobile$path');
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
 
   Map<String, String> _headers({bool authenticated = true, bool json = false}) {
     final headers = <String, String>{
@@ -245,10 +330,15 @@ class LaravelApi {
     if (errors is Map && errors.isNotEmpty) {
       final first = errors.values.first;
       if (first is List && first.isNotEmpty) {
+<<<<<<< HEAD
         throw LaravelApiException(
           first.first.toString(),
           statusCode: response.statusCode,
         );
+=======
+        throw LaravelApiException(first.first.toString(),
+            statusCode: response.statusCode);
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
       }
     }
 
@@ -260,6 +350,7 @@ class LaravelApi {
   }
 
   Map<String, dynamic> _withoutNulls(Map<String, dynamic> data) {
+<<<<<<< HEAD
     final cleaned = <String, dynamic>{};
     for (final entry in data.entries) {
       final value = entry.value;
@@ -272,5 +363,9 @@ class LaravelApi {
       cleaned[entry.key] = value;
     }
     return cleaned;
+=======
+    return Map<String, dynamic>.fromEntries(
+        data.entries.where((entry) => entry.value != null));
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751
   }
 }

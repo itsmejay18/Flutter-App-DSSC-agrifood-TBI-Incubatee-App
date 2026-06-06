@@ -8,7 +8,11 @@ export 'database/database.dart';
 /// This replaces the generated Supabase config; all CRUD now goes through
 /// your Laravel API.
 const String kLaravelBaseUrl =
+<<<<<<< HEAD:lib/backend/supabase/mysql.dart
     'https://https://tattling-reoccupy-surfacing.ngrok-free.dev/';
+=======
+    'https://immaculate-maryetta-inventively.ngrok-free.dev';
+>>>>>>> 3effe74ef90c5d1b81edc4c237f91a534c4b9751:lib/backend/supabase/supabase.dart
 
 /// Required to bypass ngrok's browser warning page for programmatic requests.
 const String kNgrokSkipBrowserWarningHeader = 'ngrok-skip-browser-warning';
