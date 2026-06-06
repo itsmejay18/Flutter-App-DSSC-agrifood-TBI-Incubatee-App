@@ -1,4 +1,4 @@
-import 'package:supabase_flutter/supabase_flutter.dart' hide Provider;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 
 export 'database/database.dart';
@@ -7,7 +7,8 @@ export 'database/database.dart';
 ///
 /// This replaces the generated Supabase config; all CRUD now goes through
 /// your Laravel API.
-const String kLaravelBaseUrl = 'https://endowment-unshaven-ebony.ngrok-free.dev';
+const String kLaravelBaseUrl =
+    'https://immaculate-maryetta-inventively.ngrok-free.dev';
 
 /// Required to bypass ngrok's browser warning page for programmatic requests.
 const String kNgrokSkipBrowserWarningHeader = 'ngrok-skip-browser-warning';
@@ -23,7 +24,8 @@ class SupaFlow {
   final _supabase = Supabase.instance.client;
   static SupabaseClient get client => instance._supabase;
 
-  static Map<String, String> defaultHeaders({bool includeJsonContentType = false}) {
+  static Map<String, String> defaultHeaders(
+      {bool includeJsonContentType = false}) {
     final headers = <String, String>{
       kNgrokSkipBrowserWarningHeader: 'true',
       'Accept': 'application/json',
